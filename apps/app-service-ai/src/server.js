@@ -9,6 +9,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const appRoot = path.resolve(__dirname, "..");
 const publicDir = path.join(appRoot, "public");
 const port = Number(process.env.PORT || 4613);
+const host = process.env.HOST || "0.0.0.0";
 const mockMode = process.env.APP_SERVICE_AI_MOCK_MODE !== "false";
 const tokenGovernor = createTokenGovernor({
   appKey: "app-service-ai",
@@ -358,6 +359,6 @@ const server = createServer(async (request, response) => {
   }
 });
 
-server.listen(port, "127.0.0.1", () => {
-  console.log(`Azure App Service AI Scenario running at http://127.0.0.1:${port}`);
+server.listen(port, host, () => {
+  console.log(`Azure App Service AI Scenario running at http://${host}:${port}`);
 });

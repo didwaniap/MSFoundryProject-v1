@@ -9,6 +9,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const appRoot = path.resolve(__dirname, "..");
 const publicDir = path.join(appRoot, "public");
 const port = Number(process.env.PORT || 4612);
+const host = process.env.HOST || "0.0.0.0";
 const mockMode = process.env.CREATIVE_WRITER_MOCK_MODE !== "false";
 const tokenGovernor = createTokenGovernor({
   appKey: "creative-writer",
@@ -217,6 +218,6 @@ const server = createServer(async (request, response) => {
   }
 });
 
-server.listen(port, "127.0.0.1", () => {
-  console.log(`Contoso Creative Writer running at http://127.0.0.1:${port}`);
+server.listen(port, host, () => {
+  console.log(`Contoso Creative Writer running at http://${host}:${port}`);
 });
