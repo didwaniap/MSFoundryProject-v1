@@ -202,11 +202,54 @@ function mask(value) {
   return `${value.slice(0, 4)}...${value.slice(-4)}`;
 }
 
+function toEnvKeyPart(value) {
+  return String(value || "")
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+}
+
+function getWorkloadImageConfig(env, app) {
+  const appKeyPart = toEnvKeyPart(app.key);
+  const candidates = [
+    `WORKLOAD_IMAGE_${appKeyPart}`,
+    `WORKLOAD_${appKeyPart}_IMAGE_REFERENCE`,
+    "WORKLOAD_IMAGE_REFERENCE",
+    "WORKLOAD_DEMO_IMAGE"
+  ];
+
+  for (const key of candidates) {
+    if (env[key]) {
+      return {
+        configured: true,
+        source: key,
+        reference: env[key]
+      };
+    }
+  }
+
+  return {
+    configured: false,
+    source: "",
+    reference: ""
+  };
+}
+
+function getWorkloadImageConfigs(env) {
+  return Object.values(workloadAppCatalog).map((app) => ({
+    appKey: app.key,
+    appName: app.name,
+    ...getWorkloadImageConfig(env, app)
+  }));
+}
+
 function toSafeConfig(env) {
   const subscriptionId = firstValue(env, ["AZURE_SUBSCRIPTION_ID", "ARM_SUBSCRIPTION_ID"]);
   const tenantId = firstValue(env, ["AZURE_TENANT_ID", "ARM_TENANT_ID"]);
   const clientId = firstValue(env, ["AZURE_CLIENT_ID", "ARM_CLIENT_ID"]);
   const clientSecret = firstValue(env, ["AZURE_CLIENT_SECRET", "ARM_CLIENT_SECRET"]);
+  const workloadImageConfigs = getWorkloadImageConfigs(env);
+  const workloadImageConfiguredCount = workloadImageConfigs.filter((item) => item.configured).length;
 
   return {
     azure: {
@@ -246,7 +289,8 @@ function toSafeConfig(env) {
       localImageArchivePath: env.LOCAL_IMAGE_ARCHIVE_PATH || "",
       localImageArchiveConfigured: Boolean(env.LOCAL_IMAGE_ARCHIVE_PATH),
       workloadRegistryServer: env.WORKLOAD_REGISTRY_SERVER || "",
-      workloadImageConfigured: Boolean(env.WORKLOAD_IMAGE_REFERENCE || env.WORKLOAD_DEMO_IMAGE),
+      workloadImageConfigured: workloadImageConfiguredCount > 0,
+      workloadAppImagesConfigured: `${workloadImageConfiguredCount}/${workloadImageConfigs.length}`,
       workloadDeploymentEnabled: env.ENABLE_WORKLOAD_DEPLOYMENT === "true"
     },
     modelConfig: {
@@ -604,10 +648,8 @@ function buildWorkloadPlan(env, options = {}) {
   const managedIdentityName = toAzureHyphenName(`id-${hyphenPrefix}-${businessUnit.key}-${app.slug}-${environment.key}`, 64);
   const imageName = `${toAzureNamePart(prefix, 18)}/${businessUnit.key}/${app.slug}`;
   const imageTag = `${environment.key}-v1`;
-  const imageReference =
-    env.WORKLOAD_IMAGE_REFERENCE ||
-    env.WORKLOAD_DEMO_IMAGE ||
-    `ghcr.io/contoso/${imageName}:${imageTag}`;
+  const configuredImage = getWorkloadImageConfig(env, app);
+  const imageReference = configuredImage.reference || `ghcr.io/contoso/${imageName}:${imageTag}`;
   const resourceGroupName = `${prefix}-${businessUnit.key}-${environment.key}-rg`;
   const appServicePlanRequired = Boolean(app.requiresAppServicePlan);
   const appServicePlanEnabled = env.ENABLE_APP_SERVICE_PLAN === "true";
@@ -621,7 +663,7 @@ function buildWorkloadPlan(env, options = {}) {
     env.DEMO_FALLBACK_MODEL ||
     "Map to an available free-tier, trial, or open model in the Foundry model catalog";
   const templatePath = appServicePlanRequired ? "infra/bicep/workloads/app-service/main.bicep" : app.templatePath;
-  const explicitImageConfigured = Boolean(env.WORKLOAD_IMAGE_REFERENCE || env.WORKLOAD_DEMO_IMAGE);
+  const explicitImageConfigured = configuredImage.configured;
   const realModelCallsEnabled = env.ENABLE_REAL_MODEL_CALLS === "true";
   const deployPreflightChecks = [
     {
@@ -636,7 +678,7 @@ function buildWorkloadPlan(env, options = {}) {
       check: "Container image",
       status: explicitImageConfigured ? "passed" : "missing",
       detail: explicitImageConfigured
-        ? imageReference
+        ? `${imageReference} (${configuredImage.source})`
         : "Set WORKLOAD_IMAGE_REFERENCE to a registry image that Azure can pull. Local images are not enough for Azure deployment."
     },
     {
@@ -839,6 +881,7 @@ function buildWorkloadPlan(env, options = {}) {
     deployment: {
       enabled: env.ENABLE_WORKLOAD_DEPLOYMENT === "true",
       imageReference,
+      imageSource: configuredImage.source || "generated-default",
       readiness:
         env.ENABLE_WORKLOAD_DEPLOYMENT === "true"
           ? "Deployment endpoints are enabled by configuration."
@@ -3313,7 +3356,21 @@ async function buildReadinessReport({ includeAzure = false } = {}) {
   ]);
   const latestSmoke = smokeHistory[0] || null;
   const latestSmokePassed = latestSmoke?.status === "passed";
-  const workloadImageConfigured = Boolean(env.WORKLOAD_IMAGE_REFERENCE || env.WORKLOAD_DEMO_IMAGE);
+  const workloadImageConfigs = getWorkloadImageConfigs(env);
+  const workloadImageConfiguredCount = workloadImageConfigs.filter((item) => item.configured).length;
+  const workloadImageStatus =
+    workloadImageConfiguredCount === workloadImageConfigs.length
+      ? "passed"
+      : workloadImageConfiguredCount > 0
+        ? "warning"
+        : "missing";
+  const workloadImageDetail =
+    workloadImageConfiguredCount > 0
+      ? `${workloadImageConfiguredCount}/${workloadImageConfigs.length} workload image reference(s) configured: ${workloadImageConfigs
+          .filter((item) => item.configured)
+          .map((item) => `${item.appKey} via ${item.source}`)
+          .join(", ")}.`
+      : "No workload image references are set. Azure workload deployment needs registry images Azure can pull.";
   const localImageArchives = buildLocalImageArchiveList(env);
   const localArchiveCount = localImageArchives.filter((item) => item.exists).length;
   const workloadDeploymentEnabled = env.ENABLE_WORKLOAD_DEPLOYMENT === "true";
@@ -3353,11 +3410,9 @@ async function buildReadinessReport({ includeAzure = false } = {}) {
     readinessCheck(
       "Packaging",
       "Registry image reference",
-      workloadImageConfigured ? "passed" : "missing",
-      workloadImageConfigured
-        ? env.WORKLOAD_IMAGE_REFERENCE || env.WORKLOAD_DEMO_IMAGE
-        : "WORKLOAD_IMAGE_REFERENCE is not set. Azure workload deployment needs a registry image Azure can pull.",
-      "Push an image to GHCR or ACR and set WORKLOAD_IMAGE_REFERENCE."
+      workloadImageStatus,
+      workloadImageDetail,
+      "Push images to GHCR or ACR and set WORKLOAD_IMAGE_<APP_KEY> for each workload."
     ),
     readinessCheck(
       "Governance",
@@ -3462,6 +3517,7 @@ async function buildReadinessReport({ includeAzure = false } = {}) {
     packaging: {
       registryStrategy: env.IMAGE_REGISTRY_STRATEGY || "ghcr",
       workloadImageReference: env.WORKLOAD_IMAGE_REFERENCE || "",
+      workloadImageReferences: workloadImageConfigs,
       localImageArchives,
       buildCommands: [
         "npm run docker:retail",

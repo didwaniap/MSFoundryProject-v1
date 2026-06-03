@@ -46,7 +46,8 @@ http://127.0.0.1:4591
 
 ## Next build steps
 
-- Connect CI/CD templates to the user's preferred GitHub or Azure DevOps project.
-- Push one validated image to GHCR or ACR, then set `WORKLOAD_IMAGE_REFERENCE`.
+- Use the GitHub Actions workflows to publish the three sample app images to GHCR.
+- Set app-specific image references with `WORKLOAD_IMAGE_RETAIL_COPILOT`, `WORKLOAD_IMAGE_CREATIVE_WRITER`, and `WORKLOAD_IMAGE_APP_SERVICE_AI`.
+- Run workload status and what-if checks before creating any Azure workload resources.
 - Enable `ENABLE_WORKLOAD_DEPLOYMENT=true` only when ready to create billable Azure workload resources.
 - Add app-specific Azure live URLs after deployment.
