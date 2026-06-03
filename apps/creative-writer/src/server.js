@@ -4,13 +4,14 @@ import { existsSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createTokenGovernor, estimateTokens } from "../../app-helpers/governance.js";
+import { callChatModel, modelDisplayName, realModelCallsEnabled } from "../../app-helpers/llm.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const appRoot = path.resolve(__dirname, "..");
 const publicDir = path.join(appRoot, "public");
 const port = Number(process.env.PORT || 4612);
 const host = process.env.HOST || "0.0.0.0";
-const mockMode = process.env.CREATIVE_WRITER_MOCK_MODE !== "false";
+const mockMode = !realModelCallsEnabled() || process.env.CREATIVE_WRITER_MOCK_MODE === "true";
 const tokenGovernor = createTokenGovernor({
   appKey: "creative-writer",
   businessUnit: "hr",
@@ -157,6 +158,7 @@ const server = createServer(async (request, response) => {
         status: "ok",
         app: "contoso-creative-writer",
         mockMode,
+        model: modelDisplayName(),
         asOf: new Date().toISOString()
       });
       return;
@@ -187,13 +189,37 @@ const server = createServer(async (request, response) => {
         tone,
         regulatedTerms: body.regulatedTerms
       });
-      const completionTokens = estimateTokens(
+      let modelCall = null;
+
+      if (!mockMode) {
+        modelCall = await callChatModel({
+          system:
+            "You are the final editor in a Contoso multi-agent writing workflow. Improve the draft, keep it business-safe, avoid unsupported claims, and return only the final draft.",
+          user: `Topic: ${topic}\nAudience: ${audience}\nTone: ${tone}\nCompliance notes: ${workflow.agents
+            .map((agent) => `${agent.role}: ${agent.output}`)
+            .join("\n")}\n\nDraft:\n${workflow.finalDraft}`,
+          maxTokens: 220,
+          temperature: 0.4
+        });
+        workflow.finalDraft = modelCall.content || workflow.finalDraft;
+        workflow.agents.push({
+          role: "LLM Final Editor",
+          status: "completed",
+          output: workflow.finalDraft,
+          notes: [
+            `Called ${modelCall.provider} deployment ${modelCall.deployment}.`,
+            "Kept compliance and source-grounding constraints in the prompt."
+          ]
+        });
+      }
+
+      const completionTokens = modelCall?.usage?.completion_tokens || estimateTokens(
         `${workflow.finalDraft} ${workflow.agents.map((agent) => agent.output).join(" ")}`
       );
       const usageResult = tokenGovernor.recordUsage({
         sessionId,
         userId: body.userId,
-        promptTokens,
+        promptTokens: modelCall?.usage?.prompt_tokens || promptTokens,
         completionTokens
       });
       if (!usageResult.allowed) {
@@ -203,9 +229,10 @@ const server = createServer(async (request, response) => {
 
       sendJson(response, {
         status: "ok",
-        mode: mockMode ? "mock" : "model-ready",
+        mode: mockMode ? "mock" : "llm",
         sessionId,
         ...workflow,
+        modelCall,
         usage: usageResult.usage,
         policy: usageResult.policy
       });

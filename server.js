@@ -933,6 +933,14 @@ function buildWorkloadPlan(env, options = {}) {
       { name: "FOUNDRY_PROJECT_NAME", value: platformPlan.names.foundryProject },
       { name: "MODEL_PROVIDER", value: modelProvider },
       { name: "MODEL_NAME", value: preferredModel },
+      { name: "ENABLE_REAL_MODEL_CALLS", value: env.ENABLE_REAL_MODEL_CALLS || "false" },
+      {
+        name: "AZURE_OPENAI_ENDPOINT",
+        value: env.AZURE_OPENAI_ENDPOINT || `https://${platformPlan.names.foundryAccount}.openai.azure.com`
+      },
+      { name: "AZURE_OPENAI_DEPLOYMENT", value: env.AZURE_OPENAI_DEPLOYMENT || preferredModel },
+      { name: "AZURE_OPENAI_API_VERSION", value: env.AZURE_OPENAI_API_VERSION || "2024-10-21" },
+      { name: "AZURE_OPENAI_MAX_TOKENS", value: env.AZURE_OPENAI_MAX_TOKENS || "220" },
       {
         name: "HOSTING_TARGET",
         value: effectiveTargetHost === "app-service" ? "Azure App Service" : "Azure Container Apps"
@@ -980,15 +988,24 @@ function getWorkloadResourceId(plan, resource) {
   return `/subscriptions/${plan.subscriptionId}/resourceGroups/${plan.resourceGroupName}/providers/${resource.type}/${resource.name}`;
 }
 
-function buildWorkloadArmTemplate(plan) {
+function buildWorkloadArmTemplate(plan, env = {}) {
   const managedIdentity = getWorkloadManagedResources(plan).find(
     (resource) => resource.key === "managedIdentity"
   );
   const managedIdentityId = `[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', '${managedIdentity.name}')]`;
+  const secretEnvironmentVariables = [];
   const environmentVariables = plan.environmentVariables.map((item) => ({
     name: item.name,
     value: item.value
   }));
+
+  if (env.AZURE_OPENAI_API_KEY) {
+    secretEnvironmentVariables.push({
+      name: "AZURE_OPENAI_API_KEY",
+      secretRef: "azure-openai-api-key",
+      secretValue: env.AZURE_OPENAI_API_KEY
+    });
+  }
 
   if (plan.app.targetHost === "app-service") {
     const appServicePlan = getWorkloadManagedResources(plan).find(
@@ -1048,7 +1065,10 @@ function buildWorkloadArmTemplate(plan) {
               alwaysOn: false,
               ftpsState: "Disabled",
               minTlsVersion: "1.2",
-              appSettings: environmentVariables.map((item) => ({
+              appSettings: environmentVariables.concat(secretEnvironmentVariables.map((item) => ({
+                name: item.name,
+                value: item.secretValue
+              }))).map((item) => ({
                 name: item.name,
                 value: item.value
               }))
@@ -1094,6 +1114,10 @@ function buildWorkloadArmTemplate(plan) {
           managedEnvironmentId: containerAppsEnvironmentId,
           configuration: {
             activeRevisionsMode: "Single",
+            secrets: secretEnvironmentVariables.map((item) => ({
+              name: item.secretRef,
+              value: item.secretValue
+            })),
             ingress: {
               external: true,
               targetPort: plan.app.targetPort || 8080,
@@ -1105,7 +1129,12 @@ function buildWorkloadArmTemplate(plan) {
               {
                 name: "app",
                 image: plan.deployment.imageReference,
-                env: environmentVariables,
+                env: environmentVariables.concat(
+                  secretEnvironmentVariables.map((item) => ({
+                    name: item.name,
+                    secretRef: item.secretRef
+                  }))
+                ),
                 resources: {
                   cpu: 0.5,
                   memory: "1Gi"
@@ -2031,7 +2060,7 @@ async function runWorkloadWhatIf(options = {}) {
   }
 
   const token = await getAzureToken(env);
-  const template = buildWorkloadArmTemplate(plan);
+  const template = buildWorkloadArmTemplate(plan, env);
 
   log(
     "info",
@@ -2104,7 +2133,7 @@ async function deployWorkload(options = {}, payload = {}) {
   }
 
   const token = await getAzureToken(env);
-  const template = buildWorkloadArmTemplate(plan);
+  const template = buildWorkloadArmTemplate(plan, env);
   const url = `https://management.azure.com/subscriptions/${plan.subscriptionId}/resourceGroups/${plan.resourceGroupName}/providers/Microsoft.Resources/deployments/${plan.deploymentName}?api-version=2025-04-01`;
   const requestBody = {
     properties: {

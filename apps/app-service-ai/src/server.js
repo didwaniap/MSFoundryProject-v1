@@ -4,6 +4,7 @@ import { existsSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createTokenGovernor, estimateTokens } from "../../app-helpers/governance.js";
+import { callChatModel, modelDisplayName, realModelCallsEnabled } from "../../app-helpers/llm.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const appRoot = path.resolve(__dirname, "..");
@@ -11,7 +12,7 @@ const publicDir = path.join(appRoot, "public");
 const port = Number(process.env.PORT || 4613);
 const host = process.env.HOST || "0.0.0.0";
 const hostingTarget = process.env.HOSTING_TARGET || "Azure App Service";
-const mockMode = process.env.APP_SERVICE_AI_MOCK_MODE !== "false";
+const mockMode = !realModelCallsEnabled() || process.env.APP_SERVICE_AI_MOCK_MODE === "true";
 const tokenGovernor = createTokenGovernor({
   appKey: "app-service-ai",
   businessUnit: "manufacturing",
@@ -298,6 +299,7 @@ const server = createServer(async (request, response) => {
         status: "ok",
         app: "azure-app-service-ai-scenario",
         mockMode,
+        model: modelDisplayName(),
         hostingTarget,
         asOf: new Date().toISOString()
       });
@@ -330,13 +332,30 @@ const server = createServer(async (request, response) => {
       }
 
       const workflow = runAgentWorkflow(body);
-      const completionTokens = estimateTokens(
+      let modelCall = null;
+
+      if (!mockMode) {
+        modelCall = await callChatModel({
+          system:
+            "You are a manufacturing operations agent. Summarize completed tool calls clearly. Preserve approval requirements exactly and do not claim approval was granted unless the tool trace says it was.",
+          user: `User request: ${prompt}\n\nTool trace:\n${JSON.stringify(workflow.toolCalls, null, 2)}\n\nGovernance:\n${JSON.stringify(
+            workflow.governance,
+            null,
+            2
+          )}`,
+          maxTokens: 180,
+          temperature: 0.2
+        });
+        workflow.answer = modelCall.content || workflow.answer;
+      }
+
+      const completionTokens = modelCall?.usage?.completion_tokens || estimateTokens(
         `${workflow.answer} ${workflow.toolCalls.map((call) => JSON.stringify(call.output)).join(" ")}`
       );
       const usageResult = tokenGovernor.recordUsage({
         sessionId,
         userId: body.userId,
-        promptTokens,
+        promptTokens: modelCall?.usage?.prompt_tokens || promptTokens,
         completionTokens
       });
       if (!usageResult.allowed) {
@@ -345,9 +364,10 @@ const server = createServer(async (request, response) => {
       }
 
       sendJson(response, {
-        mode: mockMode ? "mock" : "model-ready",
+        mode: mockMode ? "mock" : "llm",
         sessionId,
         ...workflow,
+        modelCall,
         usage: usageResult.usage,
         policy: usageResult.policy
       });

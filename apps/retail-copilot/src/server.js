@@ -4,13 +4,14 @@ import { existsSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createTokenGovernor, estimateTokens } from "../../app-helpers/governance.js";
+import { callChatModel, modelDisplayName, realModelCallsEnabled } from "../../app-helpers/llm.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const appRoot = path.resolve(__dirname, "..");
 const publicDir = path.join(appRoot, "public");
 const port = Number(process.env.PORT || 4611);
 const host = process.env.HOST || "0.0.0.0";
-const mockMode = process.env.RETAIL_COPILOT_MOCK_MODE !== "false";
+const mockMode = !realModelCallsEnabled() || process.env.RETAIL_COPILOT_MOCK_MODE === "true";
 const tokenGovernor = createTokenGovernor({
   appKey: "retail-copilot",
   businessUnit: "finance",
@@ -179,6 +180,7 @@ const server = createServer(async (request, response) => {
         status: "ok",
         app: "contoso-chat-retail-copilot",
         mockMode,
+        model: modelDisplayName(),
         asOf: new Date().toISOString()
       });
       return;
@@ -206,12 +208,31 @@ const server = createServer(async (request, response) => {
         return;
       }
 
-      const generated = buildMockAnswer(message);
-      const completionTokens = estimateTokens(generated.answer);
+      let generated = buildMockAnswer(message);
+      let modelCall = null;
+
+      if (!mockMode) {
+        const sourceFacts = generated.sources
+          .map((source) => `${source.title}: ${source.facts.join(" ")}`)
+          .join("\n");
+        modelCall = await callChatModel({
+          system:
+            "You are Contoso Chat Retail Copilot. Recommend products using only the supplied source facts. Be concise, cite product names, and ask a clarifying question when useful.",
+          user: `Customer request: ${message}\n\nSource facts:\n${sourceFacts}`,
+          maxTokens: 180,
+          temperature: 0.2
+        });
+        generated = {
+          ...generated,
+          answer: modelCall.content || generated.answer
+        };
+      }
+
+      const completionTokens = modelCall?.usage?.completion_tokens || estimateTokens(generated.answer);
       const usageResult = tokenGovernor.recordUsage({
         sessionId,
         userId: body.userId,
-        promptTokens,
+        promptTokens: modelCall?.usage?.prompt_tokens || promptTokens,
         completionTokens
       });
       if (!usageResult.allowed) {
@@ -221,11 +242,12 @@ const server = createServer(async (request, response) => {
 
       sendJson(response, {
         status: "ok",
-        mode: mockMode ? "mock" : "model-ready",
+        mode: mockMode ? "mock" : "llm",
         sessionId,
         answer: generated.answer,
         sources: generated.sources,
         followUps: generated.followUps,
+        modelCall,
         usage: usageResult.usage,
         policy: usageResult.policy
       });
