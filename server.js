@@ -933,6 +933,10 @@ function buildWorkloadPlan(env, options = {}) {
       { name: "FOUNDRY_PROJECT_NAME", value: platformPlan.names.foundryProject },
       { name: "MODEL_PROVIDER", value: modelProvider },
       { name: "MODEL_NAME", value: preferredModel },
+      {
+        name: "HOSTING_TARGET",
+        value: effectiveTargetHost === "app-service" ? "Azure App Service" : "Azure Container Apps"
+      },
       { name: "APPLICATIONINSIGHTS_CONNECTION_STRING", value: "Resolved from Platform Core deployment output" }
     ],
     billingWarning:

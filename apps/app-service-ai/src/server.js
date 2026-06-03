@@ -10,6 +10,7 @@ const appRoot = path.resolve(__dirname, "..");
 const publicDir = path.join(appRoot, "public");
 const port = Number(process.env.PORT || 4613);
 const host = process.env.HOST || "0.0.0.0";
+const hostingTarget = process.env.HOSTING_TARGET || "Azure App Service";
 const mockMode = process.env.APP_SERVICE_AI_MOCK_MODE !== "false";
 const tokenGovernor = createTokenGovernor({
   appKey: "app-service-ai",
@@ -297,7 +298,7 @@ const server = createServer(async (request, response) => {
         status: "ok",
         app: "azure-app-service-ai-scenario",
         mockMode,
-        hostingTarget: "Azure App Service",
+        hostingTarget,
         asOf: new Date().toISOString()
       });
       return;
