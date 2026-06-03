@@ -50,4 +50,5 @@ http://127.0.0.1:4591
 - Set app-specific image references with `WORKLOAD_IMAGE_RETAIL_COPILOT`, `WORKLOAD_IMAGE_CREATIVE_WRITER`, and `WORKLOAD_IMAGE_APP_SERVICE_AI`.
 - Run workload status and what-if checks before creating any Azure workload resources.
 - Enable `ENABLE_WORKLOAD_DEPLOYMENT=true` only when ready to create billable Azure workload resources.
+- If App Service quota is unavailable, set `ENABLE_APP_SERVICE_AI_CONTAINER_APPS_FALLBACK=true` to host the App Service AI sample on Azure Container Apps for the demo.
 - Add app-specific Azure live URLs after deployment.

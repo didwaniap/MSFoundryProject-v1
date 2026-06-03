@@ -653,7 +653,14 @@ function buildWorkloadPlan(env, options = {}) {
   const resourceGroupName = `${prefix}-${businessUnit.key}-${environment.key}-rg`;
   const appServicePlanRequired = Boolean(app.requiresAppServicePlan);
   const appServicePlanEnabled = env.ENABLE_APP_SERVICE_PLAN === "true";
-  const hostingStatus = appServicePlanRequired && !appServicePlanEnabled ? "deferred" : "ready";
+  const useContainerAppsFallback =
+    app.key === "app-service-ai" &&
+    appServicePlanRequired &&
+    !appServicePlanEnabled &&
+    env.ENABLE_APP_SERVICE_AI_CONTAINER_APPS_FALLBACK === "true";
+  const effectiveTargetHost = useContainerAppsFallback ? "container-apps" : app.targetHost;
+  const effectiveAppServicePlanRequired = appServicePlanRequired && !useContainerAppsFallback;
+  const hostingStatus = effectiveAppServicePlanRequired && !appServicePlanEnabled ? "deferred" : "ready";
   const modelProvider = env.DEFAULT_MODEL_PROVIDER || "azure-ai-foundry";
   const preferredModel =
     env.DEMO_CHAT_MODEL ||
@@ -662,7 +669,10 @@ function buildWorkloadPlan(env, options = {}) {
   const fallbackModel =
     env.DEMO_FALLBACK_MODEL ||
     "Map to an available free-tier, trial, or open model in the Foundry model catalog";
-  const templatePath = appServicePlanRequired ? "infra/bicep/workloads/app-service/main.bicep" : app.templatePath;
+  const templatePath =
+    effectiveTargetHost === "app-service"
+      ? "infra/bicep/workloads/app-service/main.bicep"
+      : "infra/bicep/workloads/container-app/main.bicep";
   const explicitImageConfigured = configuredImage.configured;
   const realModelCallsEnabled = env.ENABLE_REAL_MODEL_CALLS === "true";
   const deployPreflightChecks = [
@@ -698,9 +708,11 @@ function buildWorkloadPlan(env, options = {}) {
     },
     {
       check: "Hosting quota",
-      status: appServicePlanRequired && !appServicePlanEnabled ? "deferred" : "passed",
+      status: effectiveAppServicePlanRequired && !appServicePlanEnabled ? "deferred" : "passed",
       detail:
-        appServicePlanRequired && !appServicePlanEnabled
+        useContainerAppsFallback
+          ? "App Service quota is unavailable, so this demo deploys the App Service AI scenario to Azure Container Apps."
+          : effectiveAppServicePlanRequired && !appServicePlanEnabled
           ? "App Service AI remains deferred until ENABLE_APP_SERVICE_PLAN=true and App Service quota is available."
           : "Selected hosting template can be evaluated for deployment."
     },
@@ -732,7 +744,7 @@ function buildWorkloadPlan(env, options = {}) {
     }
   ];
 
-  if (appServicePlanRequired) {
+  if (effectiveTargetHost === "app-service") {
     resources.push(
       {
         key: "appServicePlan",
@@ -856,9 +868,11 @@ function buildWorkloadPlan(env, options = {}) {
       slug: app.slug,
       type: app.type,
       proves: app.proves,
-      targetHost: app.targetHost,
+      targetHost: effectiveTargetHost,
+      originalTargetHost: app.targetHost,
+      hostingMode: useContainerAppsFallback ? "container-apps-demo-fallback" : app.targetHost,
       targetPort: app.targetPort,
-      requiresAppServicePlan: Boolean(app.requiresAppServicePlan)
+      requiresAppServicePlan: effectiveAppServicePlanRequired
     },
     resourceGroupName,
     deploymentName: `${prefix}-${businessUnit.key}-${app.slug}-${environment.key}`,
@@ -868,13 +882,15 @@ function buildWorkloadPlan(env, options = {}) {
     hosting: {
       status: hostingStatus,
       target:
-        app.targetHost === "app-service"
+        effectiveTargetHost === "app-service"
           ? "Azure App Service"
           : "Azure Container Apps",
       targetResourceName: appServicePlanRequired ? appName : appName,
       sharedEnvironmentName: platformPlan.names.containerAppsEnvironment,
       note:
-        appServicePlanRequired && !appServicePlanEnabled
+        useContainerAppsFallback
+          ? "App Service Plan deployment is unavailable in this subscription, so the demo hosts this workload on Azure Container Apps."
+          : effectiveAppServicePlanRequired && !appServicePlanEnabled
           ? "App Service Plan deployment remains deferred because ENABLE_APP_SERVICE_PLAN is not true. Use Container Apps for the live demo until quota is available."
           : "Ready for workload what-if/deployment once Platform Core exists."
     },
@@ -927,7 +943,7 @@ function buildWorkloadPlan(env, options = {}) {
     pipeline,
     testGuide: {
       urlPattern:
-        app.targetHost === "app-service"
+        effectiveTargetHost === "app-service"
           ? `https://${appName}.azurewebsites.net`
           : `https://${appName}.<container-apps-domain>`,
       prompts: app.testPrompts,
