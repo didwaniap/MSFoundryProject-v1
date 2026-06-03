@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Contoso Chat Retail Copilot</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <aside class="sidebar">
+        <p class="eyebrow">Contoso Retail</p>
+        <h1>Chat Retail Copilot</h1>
+        <p class="subtle">Mock-first RAG assistant for product discovery, grounded recommendations, and demo-safe token controls.</p>
+        <div class="status-panel">
+          <span class="status-dot"></span>
+          <span>Mock mode, no LLM calls</span>
+        </div>
+        <section>
+          <h2>Try</h2>
+          <button class="prompt" data-prompt="Tell me about waterproof tents for a family camping trip and explain why you recommend them.">Family tent recommendation</button>
+          <button class="prompt" data-prompt="Compare two tents and cite the source snippets that influenced the answer.">Compare tents</button>
+          <button class="prompt" data-prompt="I need a rain jacket and a backpack for a weekend trip. What should I consider?">Weekend gear</button>
+        </section>
+      </aside>
+      <section class="chat-panel">
+        <header class="chat-header">
+          <div>
+            <h2>Assistant</h2>
+            <p class="subtle">Answers use local mock product data until Foundry model access is wired in.</p>
+          </div>
+          <div class="usage" id="usage">0 tokens</div>
+        </header>
+        <div class="messages" id="messages" aria-live="polite"></div>
+        <form class="composer" id="chat-form">
+          <textarea id="message" rows="2" placeholder="Ask about outdoor products, comparisons, or recommendations..."></textarea>
+          <button type="submit">Send</button>
+        </form>
+      </section>
+    </main>
+    <script src="/app.js"></script>
+  </body>
+</html>

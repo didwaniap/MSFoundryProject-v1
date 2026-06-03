@@ -1,0 +1,99 @@
+trigger:
+  branches:
+    include:
+      - main
+  paths:
+    include:
+      - apps/app-service-ai/*
+      - apps/app-helpers/*
+      - scripts/create-release-manifest.js
+      - azure-pipelines/app-service-ai-ci.yml
+
+pr:
+  paths:
+    include:
+      - apps/app-service-ai/*
+      - apps/app-helpers/*
+      - scripts/create-release-manifest.js
+      - azure-pipelines/app-service-ai-ci.yml
+
+parameters:
+  - name: targetEnvironment
+    displayName: Target environment
+    type: string
+    default: dev
+    values:
+      - dev
+      - test
+      - prod
+  - name: pushImage
+    displayName: Push image to registry
+    type: boolean
+    default: false
+
+variables:
+  nodeVersion: '20.x'
+  appPath: apps/app-service-ai
+  imageRepository: azure-app-service-ai-scenario
+  imageTag: ${{ parameters.targetEnvironment }}-$(Build.SourceVersion)
+
+stages:
+  - stage: Validate
+    displayName: Validate app and AI artifacts
+    jobs:
+      - job: Validate
+        pool:
+          vmImage: ubuntu-latest
+        steps:
+          - task: NodeTool@0
+            inputs:
+              versionSpec: $(nodeVersion)
+          - script: |
+              node --check apps/app-service-ai/src/server.js
+              node --check apps/app-service-ai/public/app.js
+              node --check apps/app-helpers/governance.js
+              node --check scripts/create-release-manifest.js
+            displayName: JavaScript syntax checks
+          - script: |
+              node -e "const fs=require('fs'); const e=JSON.parse(fs.readFileSync('apps/app-service-ai/evals/smoke.json','utf8')); if(!e.cases?.length) throw new Error('No eval cases found'); console.log('Eval cases:', e.cases.length);"
+            displayName: Validate eval suite
+
+  - stage: Package
+    displayName: Build image and release manifest
+    dependsOn: Validate
+    jobs:
+      - job: Package
+        pool:
+          vmImage: ubuntu-latest
+        steps:
+          - task: Docker@2
+            displayName: Build container image
+            inputs:
+              command: build
+              Dockerfile: $(appPath)/Dockerfile
+              buildContext: .
+              repository: $(imageRepository)
+              tags: |
+                $(imageTag)
+                ${{ parameters.targetEnvironment }}-latest
+          - task: NodeTool@0
+            inputs:
+              versionSpec: $(nodeVersion)
+          - script: node scripts/create-release-manifest.js app-service-ai ${{ parameters.targetEnvironment }} "$(imageRepository):$(imageTag)"
+            displayName: Generate release manifest
+          - publish: artifacts/releases/app-service-ai/${{ parameters.targetEnvironment }}/manifest.json
+            artifact: app-service-ai-${{ parameters.targetEnvironment }}-manifest
+
+  - stage: Promote
+    displayName: Promotion gate
+    dependsOn: Package
+    condition: and(succeeded(), eq('${{ parameters.pushImage }}', 'true'))
+    jobs:
+      - job: ManualGate
+        pool: server
+        steps:
+          - task: ManualValidation@0
+            inputs:
+              instructions: Review what-if output, budget posture, token limits, and release manifest before enabling workload deployment.
+              onTimeout: reject
+            timeoutInMinutes: 1440

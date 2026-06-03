@@ -1,0 +1,43 @@
+{
+  "schemaVersion": "1.0",
+  "appKey": "app-service-ai",
+  "appName": "Azure App Service AI Scenario",
+  "businessUnit": "manufacturing",
+  "environment": "dev",
+  "hosting": "Azure App Service",
+  "generatedAt": "2026-06-03T00:45:44.876Z",
+  "source": {
+    "path": "apps/app-service-ai",
+    "commit": "local"
+  },
+  "image": {
+    "reference": "ghcr.io/contoso/msfoundryv1/manufacturing/app-service-ai:dev-v1",
+    "digest": "sha256:pending-ci-build",
+    "immutableReference": "ghcr.io/contoso/msfoundryv1/manufacturing/app-service-ai:dev-v1@sha256:pending-ci-build"
+  },
+  "aiArtifacts": {
+    "promptPackPath": "apps/app-service-ai/prompts",
+    "evalSuitePath": "apps/app-service-ai/evals/smoke.json",
+    "evalCases": [
+      "tool-status-summary",
+      "create-three-tasks",
+      "unsafe-action-refusal"
+    ]
+  },
+  "modelPolicy": {
+    "provider": "azure-ai-foundry",
+    "preferredModel": "mock-mode",
+    "mode": "mock"
+  },
+  "governance": {
+    "tokenLimitPerRequest": 1200,
+    "tokenLimitPerSession": 5000,
+    "budgetCheckRequired": true
+  },
+  "promotion": {
+    "gate": "CI validation, local mock smoke checks, and owner acknowledgement.",
+    "promotesSameImageDigest": true,
+    "requiresWhatIf": true,
+    "requiresTypedConfirmation": true
+  }
+}

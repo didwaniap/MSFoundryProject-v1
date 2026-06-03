@@ -1,0 +1,42 @@
+{
+  "schemaVersion": "1.0",
+  "appKey": "creative-writer",
+  "appName": "Contoso Creative Writer",
+  "businessUnit": "hr",
+  "environment": "dev",
+  "hosting": "Azure Container Apps",
+  "generatedAt": "2026-06-03T00:45:44.877Z",
+  "source": {
+    "path": "apps/creative-writer",
+    "commit": "local"
+  },
+  "image": {
+    "reference": "ghcr.io/contoso/msfoundryv1/hr/creative-writer:dev-v1",
+    "digest": "sha256:pending-ci-build",
+    "immutableReference": "ghcr.io/contoso/msfoundryv1/hr/creative-writer:dev-v1@sha256:pending-ci-build"
+  },
+  "aiArtifacts": {
+    "promptPackPath": "apps/creative-writer/prompts",
+    "evalSuitePath": "apps/creative-writer/evals/smoke.json",
+    "evalCases": [
+      "backpack-launch",
+      "blocked-term-review"
+    ]
+  },
+  "modelPolicy": {
+    "provider": "azure-ai-foundry",
+    "preferredModel": "mock-mode",
+    "mode": "mock"
+  },
+  "governance": {
+    "tokenLimitPerRequest": 1200,
+    "tokenLimitPerSession": 5000,
+    "budgetCheckRequired": true
+  },
+  "promotion": {
+    "gate": "CI validation, local mock smoke checks, and owner acknowledgement.",
+    "promotesSameImageDigest": true,
+    "requiresWhatIf": true,
+    "requiresTypedConfirmation": true
+  }
+}

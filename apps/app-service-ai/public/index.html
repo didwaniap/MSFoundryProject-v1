@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Azure App Service AI Scenario</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <aside class="sidebar">
+        <p class="eyebrow">Manufacturing BU</p>
+        <h1>App Service AI</h1>
+        <p class="subtle">A tool-using operations agent with approval-aware enterprise API calls.</p>
+        <div class="status">Mock mode, no LLM calls</div>
+        <dl class="facts">
+          <div>
+            <dt>Host</dt>
+            <dd>Azure App Service</dd>
+          </div>
+          <div>
+            <dt>Tools</dt>
+            <dd>Line status, tasks, approvals</dd>
+          </div>
+          <div>
+            <dt>Policy</dt>
+            <dd>Human approval for risky actions</dd>
+          </div>
+        </dl>
+      </aside>
+      <section class="workspace">
+        <form class="panel controls" id="agent-form">
+          <div class="field">
+            <label for="prompt">Agent request</label>
+            <textarea id="prompt" rows="5">Create three high-priority onboarding tasks and mark the policy review complete.</textarea>
+          </div>
+          <div class="grid">
+            <div class="field">
+              <label for="lineId">Production line</label>
+              <select id="lineId">
+                <option value="lineA">Assembly Line A</option>
+                <option value="lineB">Packaging Line B</option>
+                <option value="lineC">Quality Line C</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="priority">Priority</label>
+              <select id="priority">
+                <option value="high">High</option>
+                <option value="medium">Medium</option>
+                <option value="low">Low</option>
+              </select>
+            </div>
+          </div>
+          <label class="check">
+            <input id="approvalGranted" type="checkbox" />
+            <span>Operator approval granted</span>
+          </label>
+          <button type="submit">Run Agent</button>
+        </form>
+        <section class="panel output">
+          <header>
+            <div>
+              <h2>Agent Result</h2>
+              <p class="subtle">Tool calls and policy decisions are shown after each run.</p>
+            </div>
+            <div class="usage" id="usage">0 tokens</div>
+          </header>
+          <div id="answer" class="answer">Run the agent to call the internal tools.</div>
+          <div class="split">
+            <section>
+              <h3>Tool Trace</h3>
+              <div id="toolCalls" class="tool-calls"></div>
+            </section>
+            <section>
+              <h3>Governance</h3>
+              <div id="governance" class="governance">Approval gate waiting for a request.</div>
+            </section>
+          </div>
+        </section>
+      </section>
+    </main>
+    <script src="/app.js"></script>
+  </body>
+</html>

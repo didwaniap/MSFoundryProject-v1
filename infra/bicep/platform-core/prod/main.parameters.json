@@ -1,0 +1,46 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "location": {
+      "value": "eastus2"
+    },
+    "searchLocation": {
+      "value": "eastus2"
+    },
+    "environmentName": {
+      "value": "Prod"
+    },
+    "tenantId": {
+      "value": "8f278de4-6847-4e27-ac80-5da4cd170364"
+    },
+    "names": {
+      "value": {
+        "managedIdentity": "id-msfoundryv1-prod",
+        "logAnalytics": "msfoundryv1-prod-law",
+        "appInsights": "msfoundryv1-prod-appi",
+        "keyVault": "kv-msfoundry-prod-c52bc9",
+        "storage": "stmsfoundryvprodc52bc9",
+        "search": "srch-msfoundryv1-prod-c52bc9",
+        "containerAppsEnvironment": "cae-msfoundryv1-prod",
+        "appServicePlan": "asp-msfoundryv1-prod",
+        "foundryAccount": "aif-msfoundryv1-prod-c52bc9",
+        "foundryProject": "proj-msfoundryv1-prod"
+      }
+    },
+    "enableAppServicePlan": {
+      "value": false
+    },
+    "commonTags": {
+      "value": {
+        "Project": "MSFoundryProject-v1",
+        "Workload": "Microsoft Foundry Leadership Demo",
+        "ManagedBy": "MSFoundryProject-v1 Portal",
+        "ResourcePrefix": "msfoundryv1",
+        "Environment": "prod",
+        "BusinessUnit": "platform",
+        "Demo": "true"
+      }
+    }
+  }
+}

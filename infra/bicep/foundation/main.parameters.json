@@ -1,0 +1,46 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "location": {
+      "value": "eastus2"
+    },
+    "resourcePrefix": {
+      "value": "msfoundryv1"
+    },
+    "environments": {
+      "value": [
+        "dev",
+        "test",
+        "prod"
+      ]
+    },
+    "businessUnits": {
+      "value": [
+        {
+          "key": "finance",
+          "name": "Finance",
+          "costCenter": "FIN-DEMO"
+        },
+        {
+          "key": "hr",
+          "name": "HR",
+          "costCenter": "HR-DEMO"
+        },
+        {
+          "key": "manufacturing",
+          "name": "Manufacturing",
+          "costCenter": "MFG-DEMO"
+        }
+      ]
+    },
+    "commonTags": {
+      "value": {
+        "Project": "MSFoundryProject-v1",
+        "Owner": "PlatformEngineering",
+        "ManagedBy": "MSFoundryProject-v1 Portal"
+      }
+    }
+  }
+}
+

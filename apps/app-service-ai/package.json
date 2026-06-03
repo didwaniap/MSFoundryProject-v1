@@ -1,0 +1,13 @@
+{
+  "name": "azure-app-service-ai-scenario",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Mock-first Azure App Service tool-using agent sample for the Microsoft Foundry platform demo.",
+  "type": "module",
+  "scripts": {
+    "start": "node src/server.js"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Contoso Creative Writer</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <aside class="sidebar">
+        <p class="eyebrow">Contoso Studio</p>
+        <h1>Creative Writer</h1>
+        <p class="subtle">A mock multi-agent writing workflow with writer, reviewer, and compliance passes.</p>
+        <div class="status">Mock mode, no LLM calls</div>
+      </aside>
+      <section class="workspace">
+        <form class="panel controls" id="writer-form">
+          <div class="field">
+            <label for="topic">Topic</label>
+            <textarea id="topic" rows="3">Draft a launch article for a sustainable outdoor backpack.</textarea>
+          </div>
+          <div class="grid">
+            <div class="field">
+              <label for="audience">Audience</label>
+              <input id="audience" value="retail executives and store leaders" />
+            </div>
+            <div class="field">
+              <label for="tone">Tone</label>
+              <select id="tone">
+                <option value="editorial">Editorial</option>
+                <option value="executive">Executive</option>
+                <option value="friendly">Friendly</option>
+                <option value="technical">Technical</option>
+              </select>
+            </div>
+          </div>
+          <div class="field">
+            <label for="regulatedTerms">Blocked terms</label>
+            <input id="regulatedTerms" placeholder="comma-separated terms" />
+          </div>
+          <button type="submit">Run Agents</button>
+        </form>
+        <section class="panel output">
+          <header>
+            <div>
+              <h2>Generated Draft</h2>
+              <p class="subtle">Output is deterministic mock content until Foundry model access is enabled.</p>
+            </div>
+            <div class="usage" id="usage">0 tokens</div>
+          </header>
+          <div id="result" class="result">Run the workflow to generate a draft.</div>
+          <div id="agents" class="agents"></div>
+        </section>
+      </section>
+    </main>
+    <script src="/app.js"></script>
+  </body>
+</html>

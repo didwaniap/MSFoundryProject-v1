@@ -1,0 +1,13 @@
+{
+  "name": "contoso-creative-writer",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Mock-first multi-agent creative writing sample for the Microsoft Foundry platform demo.",
+  "type": "module",
+  "scripts": {
+    "start": "node src/server.js"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

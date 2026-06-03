@@ -1,0 +1,99 @@
+name: App Service AI CI
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Target environment for release manifest
+        required: true
+        default: dev
+        type: choice
+        options:
+          - dev
+          - test
+          - prod
+      push_image:
+        description: Push image to GHCR
+        required: true
+        default: false
+        type: boolean
+  push:
+    branches:
+      - main
+    paths:
+      - apps/app-service-ai/**
+      - apps/app-helpers/**
+      - scripts/create-release-manifest.js
+      - .github/workflows/app-service-ai-ci.yml
+  pull_request:
+    paths:
+      - apps/app-service-ai/**
+      - apps/app-helpers/**
+      - scripts/create-release-manifest.js
+      - .github/workflows/app-service-ai-ci.yml
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  APP_KEY: app-service-ai
+  APP_PATH: apps/app-service-ai
+  IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/azure-app-service-ai-scenario
+  TARGET_ENVIRONMENT: ${{ inputs.environment || 'dev' }}
+
+jobs:
+  validate:
+    name: Validate App And AI Artifacts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: JavaScript syntax checks
+        run: |
+          node --check apps/app-service-ai/src/server.js
+          node --check apps/app-service-ai/public/app.js
+          node --check apps/app-helpers/governance.js
+          node --check scripts/create-release-manifest.js
+      - name: Validate eval suite
+        run: |
+          node -e "const fs=require('fs'); const e=JSON.parse(fs.readFileSync('apps/app-service-ai/evals/smoke.json','utf8')); if(!e.cases?.length) throw new Error('No eval cases found'); console.log('Eval cases:', e.cases.length);"
+
+  package:
+    name: Build Image And Manifest
+    runs-on: ubuntu-latest
+    needs: validate
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - uses: docker/setup-buildx-action@v3
+      - name: Log in to GHCR
+        if: ${{ inputs.push_image == true }}
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/app-service-ai/Dockerfile
+          push: ${{ inputs.push_image == true }}
+          tags: |
+            ${{ env.IMAGE_NAME }}:${{ env.TARGET_ENVIRONMENT }}-${{ github.sha }}
+            ${{ env.IMAGE_NAME }}:${{ env.TARGET_ENVIRONMENT }}-latest
+      - name: Generate release manifest
+        env:
+          WORKLOAD_IMAGE_REFERENCE: ${{ env.IMAGE_NAME }}:${{ env.TARGET_ENVIRONMENT }}-${{ github.sha }}
+          WORKLOAD_IMAGE_DIGEST: sha256:pending-registry-digest
+        run: node scripts/create-release-manifest.js app-service-ai ${{ env.TARGET_ENVIRONMENT }} "$WORKLOAD_IMAGE_REFERENCE"
+      - name: Upload release manifest
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-service-ai-${{ env.TARGET_ENVIRONMENT }}-manifest
+          path: artifacts/releases/app-service-ai/${{ env.TARGET_ENVIRONMENT }}/manifest.json

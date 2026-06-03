@@ -1,0 +1,32 @@
+{
+  "name": "msfoundryproject-v1",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Enterprise demo portal for deploying Microsoft Foundry platform patterns across business units and environments.",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js",
+    "start:retail": "node apps/retail-copilot/src/server.js",
+    "start:writer": "node apps/creative-writer/src/server.js",
+    "start:appservice": "node apps/app-service-ai/src/server.js",
+    "manifest:retail:dev": "node scripts/create-release-manifest.js retail-copilot dev",
+    "manifest:retail:test": "node scripts/create-release-manifest.js retail-copilot test",
+    "manifest:retail:prod": "node scripts/create-release-manifest.js retail-copilot prod",
+    "manifest:writer:dev": "node scripts/create-release-manifest.js creative-writer dev",
+    "manifest:writer:test": "node scripts/create-release-manifest.js creative-writer test",
+    "manifest:writer:prod": "node scripts/create-release-manifest.js creative-writer prod",
+    "manifest:appservice:dev": "node scripts/create-release-manifest.js app-service-ai dev",
+    "manifest:appservice:test": "node scripts/create-release-manifest.js app-service-ai test",
+    "manifest:appservice:prod": "node scripts/create-release-manifest.js app-service-ai prod",
+    "docker:retail": "docker build -f apps/retail-copilot/Dockerfile -t contoso-retail-copilot:dev .",
+    "docker:writer": "docker build -f apps/creative-writer/Dockerfile -t contoso-creative-writer:dev .",
+    "docker:appservice": "docker build -f apps/app-service-ai/Dockerfile -t azure-app-service-ai-scenario:dev .",
+    "image:retail:save": "node scripts/save-local-image.js retail-copilot dev",
+    "image:writer:save": "node scripts/save-local-image.js creative-writer dev",
+    "image:appservice:save": "node scripts/save-local-image.js app-service-ai dev"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

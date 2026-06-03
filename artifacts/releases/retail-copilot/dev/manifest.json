@@ -1,0 +1,42 @@
+{
+  "schemaVersion": "1.0",
+  "appKey": "retail-copilot",
+  "appName": "Contoso Chat Retail Copilot",
+  "businessUnit": "finance",
+  "environment": "dev",
+  "hosting": "Azure Container Apps",
+  "generatedAt": "2026-06-03T00:45:44.878Z",
+  "source": {
+    "path": "apps/retail-copilot",
+    "commit": "local"
+  },
+  "image": {
+    "reference": "ghcr.io/contoso/msfoundryv1/finance/retail-copilot:dev-v1",
+    "digest": "sha256:pending-ci-build",
+    "immutableReference": "ghcr.io/contoso/msfoundryv1/finance/retail-copilot:dev-v1@sha256:pending-ci-build"
+  },
+  "aiArtifacts": {
+    "promptPackPath": "apps/retail-copilot/prompts",
+    "evalSuitePath": "apps/retail-copilot/evals/smoke.json",
+    "evalCases": [
+      "family-tent",
+      "compare-tents"
+    ]
+  },
+  "modelPolicy": {
+    "provider": "azure-ai-foundry",
+    "preferredModel": "mock-mode",
+    "mode": "mock"
+  },
+  "governance": {
+    "tokenLimitPerRequest": 1200,
+    "tokenLimitPerSession": 5000,
+    "budgetCheckRequired": true
+  },
+  "promotion": {
+    "gate": "CI validation, local mock smoke checks, and owner acknowledgement.",
+    "promotesSameImageDigest": true,
+    "requiresWhatIf": true,
+    "requiresTypedConfirmation": true
+  }
+}

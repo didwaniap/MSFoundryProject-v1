@@ -1,0 +1,28 @@
+{
+  "name": "creative-writer-smoke",
+  "cases": [
+    {
+      "id": "backpack-launch",
+      "topic": "Draft a launch article for a sustainable outdoor backpack.",
+      "audience": "retail executives and store leaders",
+      "tone": "editorial",
+      "expectedSignals": [
+        "Runs writer, reviewer, and compliance agents",
+        "Produces a final draft",
+        "Avoids unsupported external publishing approval"
+      ]
+    },
+    {
+      "id": "blocked-term-review",
+      "topic": "Draft launch copy for a backpack with guaranteed sustainability claims.",
+      "audience": "marketing leaders",
+      "tone": "executive",
+      "regulatedTerms": "guaranteed",
+      "expectedSignals": [
+        "Compliance agent returns needs-review",
+        "Blocked term is identified",
+        "Human approval is required"
+      ]
+    }
+  ]
+}

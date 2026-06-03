@@ -1,0 +1,23 @@
+{
+  "name": "retail-copilot-smoke",
+  "cases": [
+    {
+      "id": "family-tent",
+      "prompt": "Tell me about waterproof tents for a family camping trip and explain why you recommend them.",
+      "expectedSignals": [
+        "Mentions Aurora Trail 6-Person Tent",
+        "Explains waterproof rainfly",
+        "Includes source facts"
+      ]
+    },
+    {
+      "id": "compare-tents",
+      "prompt": "Compare two tents and cite the source snippets that influenced the answer.",
+      "expectedSignals": [
+        "Compares two tent options",
+        "Describes tradeoffs",
+        "Includes citations or source facts"
+      ]
+    }
+  ]
+}
