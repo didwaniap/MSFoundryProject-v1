@@ -12,6 +12,10 @@ export function modelDisplayName() {
   );
 }
 
+function usesCompletionTokenLimit(deployment) {
+  return /(^|[-_.])gpt[-_.]?5|gpt-chat-latest/i.test(String(deployment || ""));
+}
+
 export async function callChatModel({ system, user, maxTokens, temperature = 0.3 }) {
   const provider = process.env.MODEL_PROVIDER || process.env.DEFAULT_MODEL_PROVIDER || "azure-openai";
   if (provider !== "azure-openai") {
@@ -28,6 +32,10 @@ export async function callChatModel({ system, user, maxTokens, temperature = 0.3
     throw new Error("Azure OpenAI endpoint, deployment, and API key are required for real model calls.");
   }
 
+  const tokenLimitParameter = usesCompletionTokenLimit(deployment)
+    ? { max_completion_tokens: Number.isFinite(outputLimit) && outputLimit > 0 ? outputLimit : 220 }
+    : { max_tokens: Number.isFinite(outputLimit) && outputLimit > 0 ? outputLimit : 220 };
+
   const response = await fetch(
     `${endpoint}/openai/deployments/${encodeURIComponent(deployment)}/chat/completions?api-version=${encodeURIComponent(apiVersion)}`,
     {
@@ -41,7 +49,7 @@ export async function callChatModel({ system, user, maxTokens, temperature = 0.3
           { role: "system", content: system },
           { role: "user", content: user }
         ],
-        max_tokens: Number.isFinite(outputLimit) && outputLimit > 0 ? outputLimit : 220,
+        ...tokenLimitParameter,
         temperature
       })
     }
